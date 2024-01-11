@@ -1,0 +1,44 @@
+# Azure DevOps organization URL and PAT token
+$organizationUrl = "https://dev.azure.com/YourOrganization"
+$patToken = "YourPersonalAccessToken"
+
+# Azure DevOps REST API endpoint for getting licenses
+$licensesEndpoint = "$organizationUrl/_apis/userspace/entitlements?api-version=6.0-preview.1"
+
+# Headers for authentication
+$headers = @{
+    Authorization = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(":$($patToken)"))
+}
+
+# Variables for pagination
+$pageSize = 100
+$skip = 0
+$licenses = @()
+
+# Continue making requests until all items are retrieved
+do {
+    # Add the $top and $skip parameters to the API endpoint
+    $uri = "$licensesEndpoint&`$top=$pageSize&`$skip=$skip"
+
+    # Make the REST API request to get a page of licenses
+    $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
+
+    # Check if the request was successful
+    if ($response.count -gt 0) {
+        $licenses += $response
+        $skip += $pageSize
+    } else {
+        Write-Host "Failed to retrieve licenses. Error: $($response.message)"
+        break
+    }
+} while ($response.count -eq $pageSize)
+
+# Display the list of licenses
+if ($licenses.count -gt 0) {
+    Write-Host "List of licenses:"
+    foreach ($license in $licenses) {
+        Write-Host " - $($license.user.emailAddress): $($license.accessLevel)"
+    }
+} else {
+    Write-Host "No licenses found."
+}
